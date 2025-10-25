@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - Admin Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+    <nav class="admin-nav">
+        <div class="container">
+            <h1>Digital Library - Admin</h1>
+            <div style="display: flex; gap: 0.5rem;">
+                <a href="/admin" class="btn">Back to Dashboard</a>
+                <a href="/admin/logout" class="btn btn-danger">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="analytics-header">
+            <h2>📊 Library Analytics</h2>
+            <div class="export-buttons">
+                <a href="/admin/export/csv" class="btn btn-small">📥 Export CSV</a>
+                <a href="/admin/export/json" class="btn btn-small">📄 Export JSON</a>
+            </div>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon">📚</div>
+                <div class="metric-info">
+                    <h3><%= totalBooks %></h3>
+                    <p>Total Books</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">👁️</div>
+                <div class="metric-info">
+                    <h3><%= totalViews.toLocaleString() %></h3>
+                    <p>Total Views</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">⬇️</div>
+                <div class="metric-info">
+                    <h3><%= totalDownloads.toLocaleString() %></h3>
+                    <p>Total Downloads</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">📈</div>
+                <div class="metric-info">
+                    <h3><%= totalBooks > 0 ? Math.round(totalViews / totalBooks) : 0 %></h3>
+                    <p>Avg Views/Book</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="charts-section">
+            <div class="chart-container">
+                <h3>Category Distribution</h3>
+                <canvas id="categoryChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Monthly Uploads (Last 12 Months)</h3>
+                <canvas id="uploadsChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Data Tables in Tabs -->
+        <div class="tabs-container" style="margin-top: 2rem;">
+            <div class="tabs-nav">
+                <button class="tab-btn active" data-tab="viewed" onclick="switchAnalyticsTab('viewed')">📈 Most Viewed</button>
+                <button class="tab-btn" data-tab="downloaded" onclick="switchAnalyticsTab('downloaded')">⬇️ Most Downloaded</button>
+                <button class="tab-btn" data-tab="recent" onclick="switchAnalyticsTab('recent')">🕒 Recent Uploads</button>
+            </div>
+        </div>
+
+        <!-- Tab: Most Viewed -->
+        <div class="tab-content active" id="tab-viewed">
+            <div class="table-container">
+                <h3>📈 Most Viewed Books</h3>
+                <div class="table-wrapper">
+                    <table class="analytics-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Author</th>
+                                <th>Views</th>
+                                <th>Downloads</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% mostViewed.forEach(book => { %>
+                                <tr>
+                                    <td><strong><%= book.title %></strong></td>
+                                    <td><%= book.author || 'Unknown' %></td>
+                                    <td>👁️ <%= book.view_count || 0 %></td>
+                                    <td>⬇️ <%= book.download_count || 0 %></td>
+                                    <td>
+                                        <a href="/book/<%= book._id %>" class="btn btn-small" target="_blank">View</a>
+                                        <a href="/admin/edit/<%= book._id %>" class="btn btn-small">Edit</a>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                            <% if (mostViewed.length === 0) { %>
+                                <tr><td colspan="5">No books with views yet</td></tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Most Downloaded -->
+        <div class="tab-content" id="tab-downloaded">
+            <div class="table-container">
+                <h3>⬇️ Most Downloaded Books</h3>
+                <div class="table-wrapper">
+                    <table class="analytics-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Author</th>
+                                <th>Downloads</th>
+                                <th>Views</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% mostDownloaded.forEach(book => { %>
+                                <tr>
+                                    <td><strong><%= book.title %></strong></td>
+                                    <td><%= book.author || 'Unknown' %></td>
+                                    <td>⬇️ <%= book.download_count || 0 %></td>
+                                    <td>👁️ <%= book.view_count || 0 %></td>
+                                    <td>
+                                        <a href="/book/<%= book._id %>" class="btn btn-small" target="_blank">View</a>
+                                        <a href="/admin/edit/<%= book._id %>" class="btn btn-small">Edit</a>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                            <% if (mostDownloaded.length === 0) { %>
+                                <tr><td colspan="5">No books with downloads yet</td></tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Recent Uploads -->
+        <div class="tab-content" id="tab-recent">
+            <div class="table-container">
+                <h3>🕒 Recent Uploads</h3>
+                <div class="table-wrapper">
+                    <table class="analytics-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Author</th>
+                                <th>Category</th>
+                                <th>Upload Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% recentBooks.forEach(book => { %>
+                                <tr>
+                                    <td><strong><%= book.title %></strong></td>
+                                    <td><%= book.author || 'Unknown' %></td>
+                                    <td>
+                                        <% if (book.category) { %>
+                                            <span class="category-badge"><%= book.category %></span>
+                                        <% } else { %>
+                                            -
+                                        <% } %>
+                                    </td>
+                                    <td><%= new Date(book.upload_date).toLocaleDateString() %></td>
+                                    <td>
+                                        <a href="/book/<%= book._id %>" class="btn btn-small" target="_blank">View</a>
+                                        <a href="/admin/edit/<%= book._id %>" class="btn btn-small">Edit</a>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                            <% if (recentBooks.length === 0) { %>
+                                <tr><td colspan="5">No books uploaded yet</td></tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Analytics Tabs
+        function switchAnalyticsTab(name) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + name).classList.add('active');
+            document.querySelectorAll('.tabs-nav .tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`.tabs-nav .tab-btn[data-tab="${name}"]`).classList.add('active');
+        }
+
+        // Category Chart
+        const categoryData = <%- JSON.stringify(categoryStats) %>;
+        const categoryLabels = categoryData.map(item => item._id || 'Uncategorized');
+        const categoryCounts = categoryData.map(item => item.count);
+        
+        if (categoryData.length > 0) {
+            const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+            new Chart(categoryCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: categoryLabels,
+                    datasets: [{
+                        data: categoryCounts,
+                        backgroundColor: [
+                            '#667eea', '#764ba2', '#f093fb', '#f5576c',
+                            '#4facfe', '#43e97b', '#fa709a', '#fee140',
+                            '#a8edea', '#fed6e3', '#d299c2', '#fef9d7'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Monthly Uploads Chart
+        const monthlyData = <%- JSON.stringify(monthlyUploads) %>;
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        // Create last 12 months labels
+        const months = [];
+        const uploadCounts = [];
+        const now = new Date();
+        
+        for (let i = 11; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            months.push(`${monthNames[date.getMonth()]} ${date.getFullYear()}`);
+            
+            const found = monthlyData.find(item => 
+                item._id.year === date.getFullYear() && 
+                item._id.month === date.getMonth() + 1
+            );
+            uploadCounts.push(found ? found.count : 0);
+        }
+
+        const uploadsCtx = document.getElementById('uploadsChart').getContext('2d');
+        new Chart(uploadsCtx, {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [{
+                    label: 'Books Uploaded',
+                    data: uploadCounts,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

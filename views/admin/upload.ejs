@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Book - Admin Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="admin-nav">
+        <div class="container">
+            <h1>Digital Library - Admin</h1>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-small" id="themeToggle" title="Toggle theme">🌙</button>
+                <a href="/admin" class="btn">Back to Dashboard</a>
+                <a href="/admin/logout" class="btn btn-danger">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="upload-form-container">
+            <h2>Upload New Book</h2>
+            <form action="/admin/upload" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <div class="form-group">
+                    <label for="title">Book Title *</label>
+                    <input type="text" id="title" name="title" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="author">Author Name *</label>
+                    <input type="text" id="author" name="author" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="category">Category *</label>
+                    <select id="category" name="category" required>
+                        <option value="">Select a category</option>
+                        <option value="Fiction">Fiction</option>
+                        <option value="Non-Fiction">Non-Fiction</option>
+                        <option value="Science">Science</option>
+                        <option value="Technology">Technology</option>
+                        <option value="History">History</option>
+                        <option value="Biography">Biography</option>
+                        <option value="Business">Business</option>
+                        <option value="Self-Help">Self-Help</option>
+                        <option value="Education">Education</option>
+                        <option value="Poetry">Poetry</option>
+                        <option value="Art">Art</option>
+                        <option value="Philosophy">Philosophy</option>
+                        <option value="Religion">Religion</option>
+                        <option value="Travel">Travel</option>
+                        <option value="Cooking">Cooking</option>
+                        <option value="Health">Health</option>
+                        <option value="Drama">Drama</option>
+                        <option value="Mythology">Mythology</option>
+                        <option value="Horror">Horror</option>
+                        <option value="Adventure">Adventure</option>
+                        <option value="Humourous">Humourous</option>
+                        <option value="Comedy">Comedy</option>
+                        <option value="Crime">Crime</option>
+                        <option value="Romance">Romance</option>
+                        <option value="Fantasy">Fantasy</option>
+                        <option value="Thriller">Thriller</option>
+                        <option value="Mystery">Mystery</option>
+                        <option value="Sci-Fi">Sci-Fi</option>
+                        <option value="Gothic">Gothic</option>
+                        <option value="Spiritual">Spiritual</option>
+                        <option value="Folktale">Folktale</option>
+                        <option value="Young Adult">Young Adult</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="tags">Tags</label>
+                    <input type="text" id="tags" name="tags" placeholder="e.g. classic, bestseller, award-winning">
+                    <small>Separate multiple tags with commas</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" rows="4"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" name="is_premium"> Premium book</label>
+                    <small>Premium books require an active subscription to read/download</small>
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" name="featured"> Feature on homepage</label>
+                    <small>Featured book will appear in the homepage hero banner.</small>
+                </div>
+                <div class="form-group">
+                    <label for="featured_tagline">Feature tagline (optional)</label>
+                    <input type="text" id="featured_tagline" name="featured_tagline" placeholder="e.g., Editor’s pick of the week">
+                </div>
+
+                <div class="form-group">
+                    <label for="pdf">PDF File *</label>
+                    <input type="file" id="pdf" name="pdf" accept=".pdf" required>
+                    <small>Max file size: 50MB</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="thumbnail">Thumbnail Image *</label>
+                    <input type="file" id="thumbnail" name="thumbnail" accept="image/*" required>
+                    <small>Recommended size: 300x400px</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Upload Book</button>
+            </form>
+        </div>
+    </div>
+    <script>
+        // Theme toggle
+        (function(){
+            const btn = document.getElementById('themeToggle');
+            const apply = (mode) => { document.body.classList.toggle('dark', mode === 'dark'); if(btn) btn.textContent = mode === 'dark' ? '☀️' : '🌙'; };
+            const stored = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            apply(stored || (prefersDark ? 'dark' : 'light'));
+            if (btn) btn.addEventListener('click', () => {
+                const isDark = document.body.classList.toggle('dark');
+                if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            });
+        })();
+    </script>
+</body>
+</html>

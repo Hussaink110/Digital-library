@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Book - Admin Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="admin-nav">
+        <div class="container">
+            <h1>Digital Library - Admin</h1>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-small" id="themeToggle" title="Toggle theme">🌙</button>
+                <a href="/admin" class="btn">Back to Dashboard</a>
+                <a href="/admin/logout" class="btn btn-danger">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="upload-form-container">
+            <h2>Edit Book</h2>
+            <p style="color: #7f8c8d; margin-bottom: 1.5rem;">Update book information without re-uploading files</p>
+            
+            <form action="/admin/edit/<%= book._id %>" method="POST">
+                <div class="form-group">
+                    <label for="title">Book Title *</label>
+                    <input type="text" id="title" name="title" value="<%= book.title %>" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="author">Author Name</label>
+                    <input type="text" id="author" name="author" value="<%= book.author || '' %>">
+                </div>
+
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <select id="category" name="category">
+                        <option value="">Select a category</option>
+                        <option value="Fiction" <%= book.category === 'Fiction' ? 'selected' : '' %>>Fiction</option>
+                        <option value="Non-Fiction" <%= book.category === 'Non-Fiction' ? 'selected' : '' %>>Non-Fiction</option>
+                        <option value="Science" <%= book.category === 'Science' ? 'selected' : '' %>>Science</option>
+                        <option value="Technology" <%= book.category === 'Technology' ? 'selected' : '' %>>Technology</option>
+                        <option value="History" <%= book.category === 'History' ? 'selected' : '' %>>History</option>
+                        <option value="Biography" <%= book.category === 'Biography' ? 'selected' : '' %>>Biography</option>
+                        <option value="Business" <%= book.category === 'Business' ? 'selected' : '' %>>Business</option>
+                        <option value="Self-Help" <%= book.category === 'Self-Help' ? 'selected' : '' %>>Self-Help</option>
+                        <option value="Education" <%= book.category === 'Education' ? 'selected' : '' %>>Education</option>
+                        <option value="Poetry" <%= book.category === 'Poetry' ? 'selected' : '' %>>Poetry</option>
+                        <option value="Art" <%= book.category === 'Art' ? 'selected' : '' %>>Art</option>
+                        <option value="Philosophy" <%= book.category === 'Philosophy' ? 'selected' : '' %>>Philosophy</option>
+                        <option value="Religion" <%= book.category === 'Religion' ? 'selected' : '' %>>Religion</option>
+                        <option value="Travel" <%= book.category === 'Travel' ? 'selected' : '' %>>Travel</option>
+                        <option value="Cooking" <%= book.category === 'Cooking' ? 'selected' : '' %>>Cooking</option>
+                        <option value="Health" <%= book.category === 'Health' ? 'selected' : '' %>>Health</option>
+                        <option value="Drama" <%= book.category === 'Drama' ? 'selected' : '' %>>Drama</option>
+                        <option value="Mythology" <%= book.category === 'Mythology' ? 'selected' : '' %>>Mythology</option>
+                        <option value="Horror" <%= book.category === 'Horror' ? 'selected' : '' %>>Horror</option>
+                        <option value="Adventure" <%= book.category === 'Adventure' ? 'selected' : '' %>>Adventure</option>
+                        <option value="Humourous" <%= book.category === 'Humourous' ? 'selected' : '' %>>Humourous</option>
+                        <option value="Comedy" <%= book.category === 'Comedy' ? 'selected' : '' %>>Comedy</option>
+                        <option value="Crime" <%= book.category === 'Crime' ? 'selected' : '' %>>Crime</option>
+                        <option value="Romance" <%= book.category === 'Romance' ? 'selected' : '' %>>Romance</option>
+                        <option value="Fantasy" <%= book.category === 'Fantasy' ? 'selected' : '' %>>Fantasy</option>
+                        <option value="Thriller" <%= book.category === 'Thriller' ? 'selected' : '' %>>Thriller</option>
+                        <option value="Mystery" <%= book.category === 'Mystery' ? 'selected' : '' %>>Mystery</option>
+                        <option value="Sci-Fi" <%= book.category === 'Sci-Fi' ? 'selected' : '' %>>Sci-Fi</option>
+                        <option value="Gothic" <%= book.category === 'Gothic' ? 'selected' : '' %>>Gothic</option>
+                        <option value="Spiritual" <%= book.category === 'Spiritual' ? 'selected' : '' %>>Spiritual</option>
+                        <option value="Folktale" <%= book.category === 'Folktale' ? 'selected' : '' %>>Folktale</option>
+                        <option value="Young Adult" <%= book.category === 'Young Adult' ? 'selected' : '' %>>Young Adult</option>
+                        <option value="Other" <%= book.category === 'Other' ? 'selected' : '' %>>Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="tags">Tags</label>
+                    <input type="text" id="tags" name="tags" 
+                           value="<%= book.tags && book.tags.length > 0 ? book.tags.join(', ') : '' %>"
+                           placeholder="e.g. classic, bestseller, award-winning">
+                    <small>Separate multiple tags with commas</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" rows="6"><%= book.description || '' %></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" name="is_premium" <%= book.is_premium ? 'checked' : '' %>> Premium book</label>
+                    <small>Premium books require an active subscription to read/download</small>
+                </div>
+
+                <div class="form-info">
+                    <p><strong>Current Files:</strong></p>
+                    <p>📄 PDF: <%= book.pdf_path %></p>
+                    <p>🖼️ Thumbnail: <%= book.thumbnail_path %></p>
+                    <p style="margin-top: 1rem;"><small>Note: To change PDF or thumbnail, please delete and re-upload the book.</small></p>
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="submit" class="btn btn-primary">Update Book</button>
+                    <a href="/admin" class="btn">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        // Theme toggle
+        (function(){
+            const btn = document.getElementById('themeToggle');
+            const apply = (mode) => { document.body.classList.toggle('dark', mode === 'dark'); if(btn) btn.textContent = mode === 'dark' ? '☀️' : '🌙'; };
+            const stored = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            apply(stored || (prefersDark ? 'dark' : 'light'));
+            if (btn) btn.addEventListener('click', () => {
+                const isDark = document.body.classList.toggle('dark');
+                if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            });
+        })();
+    </script>
+</body>
+</html>

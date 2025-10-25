@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Library</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <meta name="csrf-token" content="<%= csrfToken %>">
+</head>
+<body data-is-logged-in="<%- JSON.stringify(!!currentUser) %>">
+    <nav>
+        <div class="container" style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; position:relative;">
+            <h1>📚 Digital Library</h1>
+            <div class="nav-actions" style="display:flex; gap:0.5rem; align-items:center;">
+                <% if (currentUser) { %>
+                    <span style="font-size:0.9rem; color:#7f8c8d;">Hi, <%= currentUser.name || currentUser.email %></span>
+                    <a href="/user/logout" class="btn btn-danger">Logout</a>
+                <% } else { %>
+                    <a href="/user/login" class="btn">Login</a>
+                    <a href="/user/register" class="btn btn-primary">Register</a>
+                <% } %>
+                <button class="btn btn-small" id="themeToggle" title="Toggle theme">🌙</button>
+            </div>
+            <button class="btn btn-small menu-toggle" id="menuToggle" aria-label="Open menu">☰</button>
+            <div class="mobile-menu-panel" id="mobileMenu">
+                <button class="btn btn-small" onclick="switchTab('all'); hideMenu()">📚 All Books</button>
+                <button class="btn btn-small" onclick="switchTab('trending'); hideMenu()">🔥 Trending</button>
+                <button class="btn btn-small" onclick="switchTab('favorites'); hideMenu()">⭐ Favorites</button>
+                <button class="btn btn-small" onclick="switchTab('continue'); hideMenu()">📖 Continue</button>
+                <% if (currentUser) { %>
+                    <a class="btn btn-small btn-danger" href="/user/logout">Logout</a>
+                <% } else { %>
+                    <a class="btn btn-small" href="/user/login">Login</a>
+                    <a class="btn btn-small btn-primary" href="/user/register">Register</a>
+                <% } %>
+                <button class="btn btn-small" onclick="toggleTheme(); hideMenu()" id="themeToggleMobile">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <% if (typeof featuredBook !== 'undefined' && featuredBook) { %>
+    <section class="hero" style="background:linear-gradient(90deg,#667eea,#764ba2); color:#fff;">
+        <div class="container" style="display:flex; gap:1rem; align-items:center; padding:1.25rem 0; flex-wrap:wrap;">
+            <div style="flex:1 1 420px; min-width:280px;">
+                <div class="category-badge" style="background:#fff; color:#764ba2; display:inline-block; margin-bottom:0.5rem;">Featured</div>
+                <h2 style="margin:0 0 0.25rem 0; color:#fff;"><%= featuredBook.title %></h2>
+                <% if (featuredBook.author) { %>
+                    <p style="margin:0 0 0.25rem 0; opacity:0.9;">By <strong><%= featuredBook.author %></strong></p>
+                <% } %>
+                <% if (featuredBook.featured_tagline) { %>
+                    <p style="margin:0 0 0.75rem 0; font-size:1.05rem; opacity:0.95;"><%= featuredBook.featured_tagline %></p>
+                <% } %>
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                    <a href="/book/<%= featuredBook._id %>" class="btn">View Details</a>
+                    <a href="/read/<%= featuredBook._id %>" class="btn btn-primary">Read Online</a>
+                </div>
+            </div>
+            <div style="flex:0 0 260px; max-width:260px;">
+                <% if (featuredBook.thumbnail_path) { %>
+                <img src="<%= featuredBook.thumbnail_path %>" alt="<%= featuredBook.title %>" style="width:100%; border-radius:12px; box-shadow:0 10px 25px rgba(0,0,0,0.25);">
+                <% } %>
+            </div>
+        </div>
+    </section>
+    <% } else { %>
+    <header class="hero">
+        <div class="container">
+            <h2>Welcome to Our Digital Library</h2>
+            <p>Read books online or download them for offline reading</p>
+        </div>
+    </header>
+    <% } %>
+
+    <% if (currentUser) { %>
+      <div class="container" style="margin-top:0.75rem;">
+        <% if (currentUser.subscription_status !== 'active' || !currentUser.subscription_end || new Date(currentUser.subscription_end) < new Date()) { %>
+          <div class="alert alert-success" style="background:#fdecea; color:#c0392b; border-color:#f5c6cb;">
+            Your subscription is inactive/expired. Please contact admin via email to renew.
+          </div>
+        <% } else { %>
+          <div class="alert alert-success">
+            Plan: <strong><%= currentUser.subscription_plan %></strong>
+            <% if (currentUser.subscription_plan === 'basic') { %>
+              • Limits this period: 10 reads / 5 downloads
+            <% } else if (currentUser.subscription_plan === 'premium') { %>
+              • Limits this period: 100 reads / 25 downloads
+            <% } %>
+            • Expires on: <%= new Date(currentUser.subscription_end).toLocaleDateString() %>
+          </div>
+        <% } %>
+      </div>
+    <% } %>
+
+    <main class="container">
+        <div class="home-layout">
+            <aside class="home-aside">
+                <% if (recentUploads && recentUploads.length > 0) { %>
+                    <h3 class="aside-title">🆕 Recent Uploads</h3>
+                    <div class="recent-list">
+                        <% recentUploads.forEach(book => { %>
+                            <a href="/book/<%= book._id %>" class="recent-item">
+<img src="<%= book.thumbnail_path %>" alt="<%= book.title %>" loading="lazy">
+                                <div class="recent-meta">
+                                    <div class="recent-title"><%= book.title %></div>
+                                    <% if (book.author) { %>
+                                        <div class="recent-sub"><%= book.author %></div>
+                                    <% } %>
+                                    <% if (book.category) { %>
+                                        <div class="recent-sub"><span class="category-badge"><%= book.category %></span></div>
+                                    <% } %>
+                                </div>
+                            </a>
+                        <% }) %>
+                    </div>
+                    <div class="aside-actions">
+                        <a class="btn btn-small" href="/?sort=newest">View All</a>
+                    </div>
+                <% } %>
+            </aside>
+            <div class="home-main">
+        <!-- Tab Navigation -->
+        <div class="tabs-container">
+            <div class="tabs-nav">
+                <button class="tab-btn active" onclick="switchTab('all')" data-tab="all">
+                    📚 All Books
+                </button>
+                <button class="tab-btn" onclick="switchTab('trending')" data-tab="trending">
+                    🔥 Trending
+                </button>
+                <button class="tab-btn" onclick="switchTab('favorites')" data-tab="favorites" id="favoritesTab" style="display: none;">
+                    ⭐ My Favorites <span class="tab-badge" id="favoritesBadge">0</span>
+                </button>
+                <button class="tab-btn" onclick="switchTab('continue')" data-tab="continue" id="continueTab" style="display: none;">
+                    📖 Continue Reading
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab Content: All Books -->
+        <div class="tab-content active" id="tab-all">
+
+        <!-- Search and Filter Section -->
+
+        <!-- Search and Filter Section -->
+        <div class="search-filter-container">
+            <form action="/" method="GET" id="searchForm">
+                <div class="search-bar-wrapper">
+                    <input type="text" name="search" id="searchInput" class="search-bar" 
+                           placeholder="Search by title, author, or keywords..." 
+                           value="<%= searchQuery %>" autocomplete="off">
+                    <button type="submit" class="search-btn">Search</button>
+                </div>
+                <div id="suggestions" class="suggestions" style="display:none;"></div>
+                
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label for="category">Category:</label>
+                        <select name="category" id="category" onchange="this.form.submit()">
+                            <option value="">All Categories</option>
+                            <% categories.forEach(cat => { %>
+                                <option value="<%= cat %>" <%= selectedCategory === cat ? 'selected' : '' %>>
+                                    <%= cat %>
+                                </option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="author">Author:</label>
+                        <select name="author" id="author" onchange="this.form.submit()">
+                            <option value="">All Authors</option>
+                            <% authors.forEach(auth => { %>
+                                <option value="<%= auth %>" <%= selectedAuthor === auth ? 'selected' : '' %>>
+                                    <%= auth %>
+                                </option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="sort">Sort by:</label>
+                        <select name="sort" id="sort" onchange="this.form.submit()">
+                            <option value="newest" <%= sortBy === 'newest' ? 'selected' : '' %>>Newest First</option>
+                            <option value="oldest" <%= sortBy === 'oldest' ? 'selected' : '' %>>Oldest First</option>
+                            <option value="title-asc" <%= sortBy === 'title-asc' ? 'selected' : '' %>>Title (A-Z)</option>
+                            <option value="title-desc" <%= sortBy === 'title-desc' ? 'selected' : '' %>>Title (Z-A)</option>
+                            <option value="author" <%= sortBy === 'author' ? 'selected' : '' %>>Author</option>
+                        </select>
+                    </div>
+                    
+                    <% if (searchQuery || selectedCategory || selectedAuthor) { %>
+                        <a href="/" class="clear-filters-btn">Clear Filters</a>
+                    <% } %>
+                </div>
+            </form>
+            
+            <div class="results-info">
+                <% if (totalBooks === 0) { %>
+                    <p>No books found</p>
+                <% } else if (totalBooks === 1) { %>
+                    <p>1 book found</p>
+                <% } else { %>
+                    <p><%= totalBooks %> books found</p>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- Books Grid -->
+        <% if (books.length === 0) { %>
+            <div class="empty-state">
+                <p>No books available yet. Check back soon!</p>
+            </div>
+        <% } else { %>
+            <div class="books-grid">
+                <% books.forEach(book => { %>
+                    <div class="book-card">
+<img src="<%= book.thumbnail_path %>" alt="<%= book.title %>" loading="lazy">
+                        <div class="book-info">
+                            <h3><%= book.title %></h3>
+                            <% if (book.author) { %>
+                                <p class="book-author"><strong>By:</strong> <%= book.author %></p>
+                            <% } %>
+                            <% if (book.category) { %>
+                                <p class="book-category"><span class="category-badge"><%= book.category %></span></p>
+                            <% } %>
+                            <% if (book.is_premium) { %>
+                                <p><span class="tag-badge" style="background:#8e44ad;">Premium</span></p>
+                            <% } %>
+                            <% if (book.tags && book.tags.length > 0) { %>
+                                <div class="book-tags">
+                                    <% book.tags.forEach(tag => { %>
+                                        <span class="tag-badge"><%= tag %></span>
+                                    <% }) %>
+                                </div>
+                            <% } %>
+                            <p><%= book.description || 'No description available' %></p>
+                            <div class="book-stats-small">
+                                <span title="Rating">⭐ <%= (book.avg_rating || 0).toFixed(1) %></span>
+                                <span title="Views">👁️ <%= book.view_count || 0 %></span>
+                                <span title="Downloads">⬇️ <%= book.download_count || 0 %></span>
+                            </div>
+                            <div class="book-actions">
+                                <a href="/book/<%= book._id %>" class="btn">View Details</a>
+                                <a href="/read/<%= book._id %>" class="btn btn-primary">Read Online</a>
+                                <button class="btn-favorite-small" onclick="toggleFavorite('<%= book._id %>', event)" data-book-id="<%= book._id %>">
+                                    <span class="favorite-icon">☆</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+            
+            <!-- Pagination -->
+            <% if (totalPages > 1) { %>
+                <div class="pagination">
+                    <% if (currentPage > 1) { %>
+                        <a href="?page=<%= currentPage - 1 %><%= searchQuery ? '&search=' + searchQuery : '' %><%= selectedCategory ? '&category=' + selectedCategory : '' %><%= selectedAuthor ? '&author=' + selectedAuthor : '' %><%= sortBy !== 'newest' ? '&sort=' + sortBy : '' %>" 
+                           class="pagination-btn">&laquo; Previous</a>
+                    <% } %>
+                    
+                    <% for (let i = 1; i <= totalPages; i++) { %>
+                        <% if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) { %>
+                            <a href="?page=<%= i %><%= searchQuery ? '&search=' + searchQuery : '' %><%= selectedCategory ? '&category=' + selectedCategory : '' %><%= selectedAuthor ? '&author=' + selectedAuthor : '' %><%= sortBy !== 'newest' ? '&sort=' + sortBy : '' %>" 
+                               class="pagination-btn <%= i === currentPage ? 'active' : '' %>"><%= i %></a>
+                        <% } else if (i === currentPage - 3 || i === currentPage + 3) { %>
+                            <span class="pagination-dots">...</span>
+                        <% } %>
+                    <% } %>
+                    
+                    <% if (currentPage < totalPages) { %>
+                        <a href="?page=<%= currentPage + 1 %><%= searchQuery ? '&search=' + searchQuery : '' %><%= selectedCategory ? '&category=' + selectedCategory : '' %><%= selectedAuthor ? '&author=' + selectedAuthor : '' %><%= sortBy !== 'newest' ? '&sort=' + sortBy : '' %>" 
+                           class="pagination-btn">Next &raquo;</a>
+                    <% } %>
+                </div>
+            <% } %>
+        <% } %>
+        </div>
+        <!-- End Tab Content: All Books -->
+
+        <!-- Tab Content: Trending Books -->
+        <div class="tab-content" id="tab-trending">
+            <div class="tab-section-header">
+                <h2>🔥 Trending Books</h2>
+                <p class="tab-description">Most viewed books in the library</p>
+            </div>
+            <% if (popularBooks && popularBooks.length > 0) { %>
+                <div class="books-grid">
+                    <% popularBooks.forEach(book => { %>
+                        <div class="book-card">
+<img src="<%= book.thumbnail_path %>" alt="<%= book.title %>" loading="lazy">
+                            <div class="book-info">
+                                <h3><%= book.title %></h3>
+                                <% if (book.author) { %>
+                                    <p class="book-author"><strong>By:</strong> <%= book.author %></p>
+                                <% } %>
+                                <% if (book.category) { %>
+                                    <p class="book-category"><span class="category-badge"><%= book.category %></span></p>
+                                <% } %>
+                                <% if (book.is_premium) { %>
+                                    <p><span class="tag-badge" style="background:#8e44ad;">Premium</span></p>
+                                <% } %>
+                                <% if (book.tags && book.tags.length > 0) { %>
+                                    <div class="book-tags">
+                                        <% book.tags.forEach(tag => { %>
+                                            <span class="tag-badge"><%= tag %></span>
+                                        <% }) %>
+                                    </div>
+                                <% } %>
+                                <p><%= book.description || 'No description available' %></p>
+                                <div class="book-stats-small">
+                                    <span title="Views">👁️ <%= book.view_count || 0 %></span>
+                                    <span title="Downloads">⬇️ <%= book.download_count || 0 %></span>
+                                </div>
+                                <div class="book-actions">
+                                    <a href="/book/<%= book._id %>" class="btn">View Details</a>
+                                    <a href="/read/<%= book._id %>" class="btn btn-primary">Read Online</a>
+                                    <button class="btn-favorite-small" onclick="toggleFavorite('<%= book._id %>', event)" data-book-id="<%= book._id %>">
+                                        <span class="favorite-icon">☆</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } else { %>
+                <div class="empty-state">
+                    <p>No trending books yet. Start reading to see popular books!</p>
+                </div>
+            <% } %>
+        </div>
+        <!-- End Tab Content: Trending Books -->
+
+        <!-- Tab Content: Favorites -->
+        <div class="tab-content" id="tab-favorites">
+            <div class="tab-section-header">
+                <div>
+                    <h2>⭐ My Favorites</h2>
+                    <p class="tab-description">Books you've bookmarked</p>
+                </div>
+                <button class="btn btn-danger" onclick="clearAllFavorites()" id="clearFavBtnTab">Clear All</button>
+            </div>
+            <div class="books-grid" id="favoritesGrid"></div>
+            <div class="empty-state" id="emptyFavorites" style="display: none;">
+                <p>You haven't added any favorites yet. Click the ☆ icon on any book to add it here!</p>
+            </div>
+        </div>
+        <!-- End Tab Content: Favorites -->
+
+        <!-- Tab Content: Continue Reading -->
+        <div class="tab-content" id="tab-continue">
+            <div class="tab-section-header">
+                <h2>📖 Continue Reading</h2>
+                <p class="tab-description">Pick up where you left off</p>
+            </div>
+            <div class="books-grid" id="continueReadingGrid"></div>
+            <div class="empty-state" id="emptyContinue" style="display: none;">
+                <p>You haven't started reading any books yet. Start exploring the library!</p>
+            </div>
+        </div>
+        <!-- End Tab Content: Continue Reading -->
+            </div><!-- /.home-main -->
+        </div><!-- /.home-layout -->
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Digital Library. All rights reserved.</p>
+        </div>
+    </footer>
+    <button id="backToTop" class="back-to-top" aria-label="Back to top">↑</button>
+
+    <!-- Pricing Modal -->
+    <div id="pricingModal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000;">
+        <div class="modal-content" style="max-width:720px; margin:6vh auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:1rem 1.25rem; background:linear-gradient(90deg,#667eea,#764ba2); color:#fff;">
+                <h3 style="margin:0;">Choose Your Plan</h3>
+                <button class="btn btn-small" onclick="dismissPricing(true)" title="Close" style="background:#ffffff22; color:#fff;">✕</button>
+            </div>
+            <div style="padding:1rem 1.25rem;">
+                <p style="margin-top:0; color:#7f8c8d;">Unlock full online reading and downloads. Pricing in INR, billed every 30 days.</p>
+                <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+                    <div class="card" style="flex:1 1 280px; border:1px solid #eee; border-radius:10px; padding:1rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h4 style="margin:0;">Basic</h4>
+                            <span class="tag-badge">Popular</span>
+                        </div>
+                        <div style="font-size:1.75rem; font-weight:700; margin:0.25rem 0;">₹29 <span style="font-size:0.9rem; font-weight:500; color:#7f8c8d;">/ 30 days</span></div>
+                        <ul style="margin:0.5rem 0 1rem 1rem; color:#555;">
+                            <li>Read up to 10 books</li>
+                            <li>Download up to 5 books</li>
+                            <li>Access standard collection</li>
+                        </ul>
+                        <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                            <% if (currentUser) { %>
+                              <button class="btn btn-primary" onclick="requestPlan('basic')">Request Basic</button>
+                            <% } else { %>
+                              <a class="btn btn-primary" href="/user/login?next=/">Login to Subscribe</a>
+                            <% } %>
+                            <button class="btn" onclick="dismissPricing()">Maybe later</button>
+                            <span id="basicReqMsg" class="alert" style="display:none;"></span>
+                        </div>
+                    </div>
+                    <div class="card" style="flex:1 1 280px; border:2px solid #764ba2; border-radius:10px; padding:1rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h4 style="margin:0;">Premium</h4>
+                            <span class="tag-badge" style="background:#8e44ad;">Best Value</span>
+                        </div>
+                        <div style="font-size:1.75rem; font-weight:700; margin:0.25rem 0;">₹99 <span style="font-size:0.9rem; font-weight:500; color:#7f8c8d;">/ 30 days</span></div>
+                        <ul style="margin:0.5rem 0 1rem 1rem; color:#555;">
+                            <li>Read up to 100 books</li>
+                            <li>Download up to 25 books</li>
+                            <li>Priority access to premium titles</li>
+                        </ul>
+                        <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                            <% if (currentUser) { %>
+                              <button class="btn btn-primary" onclick="requestPlan('premium')">Request Premium</button>
+                            <% } else { %>
+                              <a class="btn btn-primary" href="/user/login?next=/">Login to Subscribe</a>
+                            <% } %>
+                            <button class="btn" onclick="dismissPricing()">Maybe later</button>
+                            <span id="premiumReqMsg" class="alert" style="display:none;"></span>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top:0.75rem; color:#7f8c8d; font-size:0.9rem;">You can dismiss this for 7 days.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Read server-provided flags from HTML data attributes
+        const IS_LOGGED_IN = (document.body.getAttribute('data-is-logged-in') === 'true');
+        // Tab Switching
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById('tab-' + tabName).classList.add('active');
+            
+            // Add active class to selected tab button
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            
+            // Load data for dynamic tabs
+            if (tabName === 'favorites') {
+                loadFavoritesTab();
+            } else if (tabName === 'continue') {
+                loadContinueReadingTab();
+            }
+        }
+
+        async function requestPlan(plan){
+            if (!IS_LOGGED_IN) { window.location.href = '/user/login?next=/'; return; }
+            const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const msgEl = plan==='basic' ? document.getElementById('basicReqMsg') : document.getElementById('premiumReqMsg');
+            if (msgEl) { msgEl.style.display='none'; msgEl.textContent=''; msgEl.className='alert'; }
+            try{
+                const res = await fetch('/user/subscribe-request', { method:'POST', headers:{ 'Content-Type':'application/json', 'CSRF-Token': CSRF_TOKEN }, body: JSON.stringify({ plan }) });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error||'failed');
+                if (msgEl) { msgEl.className='alert alert-success'; msgEl.textContent = 'Request submitted. We will activate your plan soon.'; msgEl.style.display='block'; }
+            }catch(e){ if (msgEl){ msgEl.className='alert alert-error'; msgEl.textContent = 'Failed to submit request'; msgEl.style.display='block'; } }
+        }
+
+        // Favorites functionality
+        function checkFavorite(bookId) {
+            const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+            return favorites.includes(bookId);
+        }
+
+        const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        async function toggleFavorite(bookId, event) {
+            if (event) event.preventDefault();
+            if (IS_LOGGED_IN) {
+                try {
+                    const res = await fetch('/user/favorites/toggle', {
+                        method: 'POST', headers: { 'Content-Type':'application/json', 'CSRF-Token': CSRF_TOKEN },
+                        body: JSON.stringify({ bookId })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error||'fav failed');
+                } catch {}
+                finally { await refreshFavoritesFromServer(); }
+                return;
+            }
+            // Fallback for guests
+            let favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+            if (favorites.includes(bookId)) favorites = favorites.filter(id => id !== bookId); else favorites.push(bookId);
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            updateFavoriteButtons();
+            updateFavoritesBadge();
+            if (document.getElementById('tab-favorites').classList.contains('active')) loadFavoritesTab();
+        }
+
+        async function refreshFavoritesFromServer(){
+            try {
+                const res = await fetch('/user/favorites');
+                const ids = await res.json();
+                if (Array.isArray(ids)) localStorage.setItem('favorites', JSON.stringify(ids));
+            } catch {}
+            updateFavoriteButtons();
+            updateFavoritesBadge();
+            if (document.getElementById('tab-favorites').classList.contains('active')) loadFavoritesTab();
+        }
+
+        function updateFavoriteButtons() {
+            document.querySelectorAll('.btn-favorite-small').forEach(btn => {
+                const bookId = btn.getAttribute('data-book-id');
+                const icon = btn.querySelector('.favorite-icon');
+                
+                if (checkFavorite(bookId)) {
+                    icon.textContent = '★';
+                    btn.classList.add('favorited');
+                } else {
+                    icon.textContent = '☆';
+                    btn.classList.remove('favorited');
+                }
+            });
+        }
+
+        function updateFavoritesBadge() {
+            const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+            const badge = document.getElementById('favoritesBadge');
+            const tab = document.getElementById('favoritesTab');
+            
+            if (favorites.length > 0) {
+                badge.textContent = favorites.length;
+                tab.style.display = 'inline-block';
+            } else {
+                tab.style.display = 'none';
+            }
+        }
+
+        // Continue Reading functionality for tab
+        function loadContinueReadingTab() {
+            const readingHistory = JSON.parse(localStorage.getItem('readingHistory') || '{}');
+            const books = Object.values(readingHistory)
+                .sort((a, b) => new Date(b.lastRead) - new Date(a.lastRead));
+            
+            const progress = JSON.parse(localStorage.getItem('readingProgress') || '{}');
+            const grid = document.getElementById('continueReadingGrid');
+            const empty = document.getElementById('emptyContinue');
+            
+            if (books.length > 0) {
+                grid.innerHTML = books.map(book => {
+                    const page = progress[book.bookId]?.page ? `Page ${progress[book.bookId].page} • ` : '';
+                    return `
+                    <div class="book-card">
+<img src="${book.thumbnail}" alt="${book.title}" loading="lazy">
+                        <div class="book-info">
+                            <h3>${book.title}</h3>
+                            <p class="last-read-info">${page}🕒 Last read: ${new Date(book.lastRead).toLocaleDateString()}</p>
+                            <div class="book-actions">
+                                <a href="/book/${book.bookId}" class="btn">View Details</a>
+                                <a href="/read/${book.bookId}" class="btn btn-primary">Continue Reading</a>
+                                <button class="btn btn-danger" onclick="removeFromContinue('${book.bookId}')">Remove</button>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+                grid.style.display = 'grid';
+                empty.style.display = 'none';
+            } else {
+                grid.style.display = 'none';
+                empty.style.display = 'block';
+            }
+        }
+        
+        function updateContinueReadingTab() {
+            const readingHistory = JSON.parse(localStorage.getItem('readingHistory') || '{}');
+            const tab = document.getElementById('continueTab');
+            
+            if (Object.keys(readingHistory).length > 0) {
+                tab.style.display = 'inline-block';
+            } else {
+                tab.style.display = 'none';
+            }
+        }
+
+        function removeFromContinue(bookId){
+            // Remove from readingHistory
+            const hist = JSON.parse(localStorage.getItem('readingHistory') || '{}');
+            if (hist[bookId]) { delete hist[bookId]; localStorage.setItem('readingHistory', JSON.stringify(hist)); }
+            // Remove progress entry
+            const prog = JSON.parse(localStorage.getItem('readingProgress') || '{}');
+            if (prog[bookId]) { delete prog[bookId]; localStorage.setItem('readingProgress', JSON.stringify(prog)); }
+            // Refresh UI
+            updateContinueReadingTab();
+            if (document.getElementById('tab-continue').classList.contains('active')) loadContinueReadingTab();
+        }
+
+        // Favorites functionality for tab
+        function loadFavoritesTab() {
+            const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+            const grid = document.getElementById('favoritesGrid');
+            const empty = document.getElementById('emptyFavorites');
+            
+            if (favorites.length > 0) {
+                // Get all book cards from All Books tab
+                const allBooks = Array.from(document.querySelectorAll('#tab-all .book-card'));
+                const favoriteBooks = allBooks.filter(card => {
+                    const bookId = card.querySelector('.btn-favorite-small')?.getAttribute('data-book-id');
+                    return favorites.includes(bookId);
+                });
+                
+                if (favoriteBooks.length > 0) {
+                    grid.innerHTML = favoriteBooks.map(card => {
+                        const clone = card.cloneNode(true);
+                        return clone.outerHTML;
+                    }).join('');
+                    grid.style.display = 'grid';
+                    empty.style.display = 'none';
+                    
+                    // Re-attach event listeners and update favorite buttons in cloned cards
+                    updateFavoriteButtons();
+                } else {
+                    grid.style.display = 'none';
+                    empty.style.display = 'block';
+                }
+            } else {
+                grid.style.display = 'none';
+                empty.style.display = 'block';
+            }
+        }
+
+        function clearAllFavorites() {
+            if (confirm('Are you sure you want to clear all favorites?')) {
+                localStorage.setItem('favorites', '[]');
+                updateFavoriteButtons();
+                updateFavoritesBadge();
+                loadFavoritesTab();
+            }
+        }
+
+        // Autocomplete suggestions
+        const searchEl = document.getElementById('searchInput');
+        const sugg = document.getElementById('suggestions');
+        let suggAbort = null;
+
+        function clearSuggestions() {
+            sugg.style.display = 'none';
+            sugg.innerHTML = '';
+        }
+
+        function renderSuggestions(items) {
+            if (!items || items.length === 0) { clearSuggestions(); return; }
+            sugg.innerHTML = items.map(it => `
+                <div class="suggestion-item" role="button">
+                    <div class="suggest-title">${it.title || ''}</div>
+                    <div class="suggest-meta">${[it.author, it.category].filter(Boolean).join(' • ')}</div>
+                </div>
+            `).join('');
+            sugg.style.display = 'block';
+            Array.from(sugg.children).forEach((el) => {
+                el.addEventListener('click', () => {
+                    const t = el.querySelector('.suggest-title').textContent;
+                    searchEl.value = t;
+                    clearSuggestions();
+                    document.getElementById('searchForm').submit();
+                });
+            });
+        }
+
+        let suggTimer = null;
+        searchEl.addEventListener('input', () => {
+            const q = (searchEl.value || '').trim();
+            if (q.length < 2) { clearSuggestions(); return; }
+            clearTimeout(suggTimer);
+            suggTimer = setTimeout(async () => {
+                try {
+                    const resp = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`);
+                    const data = await resp.json();
+                    renderSuggestions(data);
+                } catch {}
+            }, 150);
+        });
+        document.addEventListener('click', (e) => { if (!sugg.contains(e.target) && e.target !== searchEl) clearSuggestions(); });
+
+        // Theme helpers
+        function setTheme(mode) {
+            document.body.classList.toggle('dark', mode === 'dark');
+            const tBtns = [document.getElementById('themeToggle'), document.getElementById('themeToggleMobile')].filter(Boolean);
+            tBtns.forEach(b => b.textContent = mode === 'dark' ? '☀️' : '🌙');
+            localStorage.setItem('theme', mode);
+        }
+        function toggleTheme() { setTheme(document.body.classList.contains('dark') ? 'light' : 'dark'); }
+        (function(){
+            const btn = document.getElementById('themeToggle');
+            const stored = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            setTheme(stored || (prefersDark ? 'dark' : 'light'));
+            btn.addEventListener('click', toggleTheme);
+            // Sync favorites from server if logged in
+            if (<%- JSON.stringify(!!currentUser) %>) { refreshFavoritesFromServer(); }
+        })();
+
+        // Mobile menu toggle
+        const menuBtn = document.getElementById('menuToggle');
+        const menu = document.getElementById('mobileMenu');
+        function hideMenu(){ menu.classList.remove('show'); }
+        menuBtn.addEventListener('click', () => { menu.classList.toggle('show'); });
+        document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && e.target !== menuBtn) hideMenu(); });
+
+        // Back to top
+        const btt = document.getElementById('backToTop');
+        window.addEventListener('scroll', () => { if (window.scrollY > 300) btt.classList.add('show'); else btt.classList.remove('show'); });
+        btt.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+        // Pricing modal helpers
+        function showPricing(){ const m=document.getElementById('pricingModal'); if(m) m.style.display='block'; }
+        function dismissPricing(){ const m=document.getElementById('pricingModal'); if(m) m.style.display='none'; }
+        function shouldShowPricing(){
+            try{
+                const hasActive = <%- JSON.stringify(!!currentUser && currentUser.subscription_status === 'active' && currentUser.subscription_end && new Date(currentUser.subscription_end) > new Date()) %>;
+                return !hasActive; // always show per visit if no active subscription or not logged in
+            } catch { return true; }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateFavoriteButtons();
+            updateFavoritesBadge();
+            updateContinueReadingTab();
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('subscribe') === '1') {
+                showPricing();
+            } else if (shouldShowPricing()) {
+                showPricing();
+            }
+        });
+    </script>
+</body>
+</html>

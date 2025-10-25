@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subscription Requests - Admin</title>
+  <meta name="csrf-token" content="<%= csrfToken %>">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="admin-nav">
+    <div class="container">
+      <h1>Digital Library - Admin</h1>
+      <div style="display:flex; gap:0.5rem;">
+        <a href="/admin" class="btn">Dashboard</a>
+        <a href="/admin/analytics" class="btn">Analytics</a>
+        <a href="/admin/logout" class="btn btn-danger">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="admin-header" style="align-items:flex-end;">
+      <div>
+        <h2>Subscription Requests</h2>
+        <p style="color:#7f8c8d; margin:0;">Approve to grant 30 days immediately, or mark processed without granting.</p>
+      </div>
+      <div style="display:flex; gap:0.5rem;">
+        <select id="filterStatus">
+          <option value="pending">Pending</option>
+          <option value="processed">Processed</option>
+        </select>
+        <button class="btn" onclick="loadRequests()">Refresh</button>
+      </div>
+    </div>
+
+    <div id="reqMsg" class="alert" style="display:none;"></div>
+
+    <div class="table-wrapper">
+      <table class="analytics-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Plan</th>
+            <th>Status</th>
+            <th>Requested</th>
+            <th>Processed</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="reqTbody">
+          <tr><td colspan="8">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const msg = document.getElementById('reqMsg');
+    function setMsg(type, text){ msg.style.display='block'; msg.textContent=text; msg.className='alert ' + (type==='error'?'alert-error':'alert-success'); }
+    function clearMsg(){ msg.style.display='none'; msg.textContent=''; }
+
+    async function loadRequests(){
+      clearMsg();
+      const tbody = document.getElementById('reqTbody');
+      const status = document.getElementById('filterStatus').value;
+      tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+      try{
+        const res = await fetch(`/admin/api/subscription-requests?status=${encodeURIComponent(status)}`, { headers: { 'CSRF-Token': CSRF_TOKEN } });
+        if(!res.ok) throw new Error('http_'+res.status);
+        const items = await res.json();
+        if(!Array.isArray(items) || items.length===0){ tbody.innerHTML='<tr><td colspan="8">No requests found.</td></tr>'; return; }
+        tbody.innerHTML = items.map(r=>{
+          const created = r.createdAt ? new Date(r.createdAt).toLocaleString() : '-';
+          const processed = r.processed_at ? new Date(r.processed_at).toLocaleString() : '-';
+          const disabled = r.status==='processed' ? 'disabled' : '';
+          return `
+            <tr>
+              <td>${r.user?.name || '-'}</td>
+              <td><code>${r.user?.email || '-'}</code></td>
+              <td>${r.user?.phone || '-'}</td>
+              <td>${r.plan}</td>
+              <td>${r.status}</td>
+              <td>${created}</td>
+              <td>${processed}</td>
+              <td>
+                <button class="btn btn-small btn-primary" ${disabled} onclick="approveReq('${r.id}')">Approve & Grant</button>
+                <button class="btn btn-small" ${disabled} onclick="markProcessed('${r.id}')">Mark Processed</button>
+              </td>
+            </tr>`; }).join('');
+      }catch(e){ console.error(e); tbody.innerHTML='<tr><td colspan="8">Failed to load</td></tr>'; }
+    }
+
+    async function approveReq(id){
+      try{
+        const res = await fetch(`/admin/requests/${id}/approve`, { method:'POST', headers: { 'CSRF-Token': CSRF_TOKEN } });
+        const data = await res.json();
+        if(!res.ok){ setMsg('error', data.error||'Approve failed'); return; }
+        setMsg('success','Approved and granted');
+        loadRequests();
+      }catch(e){ setMsg('error','Approve failed'); }
+    }
+
+    async function markProcessed(id){
+      try{
+        const res = await fetch(`/admin/requests/${id}/mark-processed`, { method:'POST', headers: { 'CSRF-Token': CSRF_TOKEN } });
+        const data = await res.json();
+        if(!res.ok){ setMsg('error', data.error||'Failed to mark processed'); return; }
+        setMsg('success','Marked as processed');
+        loadRequests();
+      }catch(e){ setMsg('error','Failed to mark processed'); }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadRequests();
+      const filter = document.getElementById('filterStatus');
+      if (filter) filter.addEventListener('change', loadRequests);
+    });
+  </script>
+</body>
+</html>

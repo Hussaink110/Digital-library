@@ -1,0 +1,39 @@
+{
+  "name": "digital-library",
+  "version": "1.0.0",
+  "description": "A digital library system for uploading, reading, and downloading PDF books",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "library",
+    "pdf",
+    "books",
+    "express",
+    "sqlite"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "connect-mongo": "^5.1.0",
+    "csurf": "^1.2.2",
+    "dotenv": "^16.3.1",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "express-fileupload": "^1.4.3",
+    "express-session": "^1.18.2",
+    "helmet": "^7.1.0",
+    "joi": "^17.12.0",
+    "mongoose": "^8.19.2",
+    "morgan": "^1.10.0",
+    "path": "^0.12.7",
+    "express-rate-limit": "^7.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

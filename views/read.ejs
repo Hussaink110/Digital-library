@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= book.title %> - Digital Library</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .pdf-viewer-container {
+            width: 100%;
+            height: calc(100vh - 120px);
+            margin-top: 20px;
+        }
+        .pdf-viewer-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .reader-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <h1>📚 Digital Library</h1>
+            <div class="nav-actions" style="display:flex; gap:0.5rem;">
+                <button class="btn btn-small" id="themeToggle" title="Toggle theme">🌙</button>
+                <a href="/" class="btn">Back to Library</a>
+            </div>
+            <button class="btn btn-small menu-toggle" id="menuToggle" aria-label="Open menu">☰</button>
+            <div class="mobile-menu-panel" id="mobileMenu">
+                <a href="/" class="btn btn-small">Back to Library</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="reader-header">
+            <div>
+                <h2><%= book.title %></h2>
+                <% if (book.author) { %>
+                    <p class="book-author"><strong>By:</strong> <%= book.author %></p>
+                <% } %>
+                <% if (book.category) { %>
+                    <p class="book-category"><span class="category-badge"><%= book.category %></span></p>
+                <% } %>
+                <p><%= book.description || '' %></p>
+            </div>
+            <a href="/download/<%= book._id %>" class="btn btn-primary">Download PDF</a>
+        </div>
+
+        <div class="pdf-viewer-container">
+            <div class="reader-controls" style="display:flex; gap:0.5rem; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+                <button class="btn btn-small" id="prevPage">Prev</button>
+                <button class="btn btn-small" id="nextPage">Next</button>
+                <span>Page <input type="number" id="pageNum" min="1" value="1" style="width:70px; padding:0.4rem;"> / <span id="pageCount">--</span></span>
+                <span style="flex:1"></span>
+                <button class="btn btn-small" id="zoomOut">-</button>
+                <button class="btn btn-small" id="zoomIn">+</button>
+                <button class="btn btn-small" id="fitWidth">Fit Width</button>
+                <button class="btn btn-small" id="fitPage">Fit Page</button>
+            </div>
+            <div id="pdfError" class="alert alert-error" style="display:none; margin-bottom:8px;">Unable to load PDF. Showing fallback viewer.</div>
+            <canvas id="pdfCanvas" style="width:100%; max-width:100%; border:1px solid #eee; background:#fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></canvas>
+            <iframe id="pdfFallback" style="display:none; width:100%; height:100%; border:1px solid #eee;"></iframe>
+        </div>
+    </div>
+
+    <button id="backToTop" class="back-to-top" aria-label="Back to top">↑</button>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Mobile menu
+        (function(){
+            const menuBtn = document.getElementById('menuToggle');
+            const menu = document.getElementById('mobileMenu');
+            if (menuBtn && menu) {
+                menuBtn.addEventListener('click', () => menu.classList.toggle('show'));
+                document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && e.target !== menuBtn) menu.classList.remove('show'); });
+            }
+        })();
+
+        // Back to top
+        (function(){
+            const btt = document.getElementById('backToTop');
+            window.addEventListener('scroll', () => { if (window.scrollY > 300) btt.classList.add('show'); else btt.classList.remove('show'); });
+            btt.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+        })();
+
+        // Theme toggle
+        (function(){
+            const btn = document.getElementById('themeToggle');
+            const apply = (mode) => { document.body.classList.toggle('dark', mode === 'dark'); if(btn) btn.textContent = mode === 'dark' ? '☀️' : '🌙'; };
+            const stored = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            apply(stored || (prefersDark ? 'dark' : 'light'));
+            if (btn) btn.addEventListener('click', () => {
+                const isDark = document.body.classList.toggle('dark');
+                if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            });
+        })();
+
+        // PDF.js based reader with page-level bookmarking
+        const bookId = '<%= book._id %>';
+        const pdfUrl = '<%= book.pdf_path %>';
+        const progressKey = 'readingProgress';
+        const historyKey = 'readingHistory';
+
+        const savedProgressAll = JSON.parse(localStorage.getItem(progressKey) || '{}');
+        const saved = savedProgressAll[bookId] || {};
+
+        let pdfDoc = null;
+        let pageNum = saved.page || 1;
+        let scale = saved.scale || 1.2;
+        let viewportFit = 'width'; // 'width' | 'page' | 'manual'
+
+        const canvas = document.getElementById('pdfCanvas');
+        const ctx = canvas.getContext('2d');
+        const pageNumInput = document.getElementById('pageNum');
+        const pageCountSpan = document.getElementById('pageCount');
+
+        function saveProgress() {
+            const all = JSON.parse(localStorage.getItem(progressKey) || '{}');
+            all[bookId] = {
+                page: pageNum,
+                scale,
+                lastRead: new Date().toISOString(),
+                thumbnail: '<%= book.thumbnail_path %>'
+            };
+            localStorage.setItem(progressKey, JSON.stringify(all));
+
+            // Also update lightweight reading history for homepage UI
+            const hist = JSON.parse(localStorage.getItem(historyKey) || '{}');
+            hist[bookId] = {
+                bookId: bookId,
+                title: '<%- (book.title || "").replace(/"/g, "&quot;") %>',
+                lastRead: new Date().toISOString(),
+                thumbnail: '<%= book.thumbnail_path %>'
+            };
+            localStorage.setItem(historyKey, JSON.stringify(hist));
+        }
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        function showFallback(){
+            document.getElementById('pdfError').style.display = 'block';
+            document.getElementById('pdfFallback').style.display = 'block';
+            document.getElementById('pdfFallback').src = pdfUrl;
+            document.getElementById('pdfCanvas').style.display = 'none';
+        }
+
+        function renderPage(num) {
+            if (!pdfDoc) { showFallback(); return; }
+            pdfDoc.getPage(num).then(page => {
+                const base = page.getViewport({ scale: 1 });
+                let targetScale = scale;
+                if (viewportFit === 'width') {
+                    const containerWidth = canvas.parentElement.clientWidth;
+                    targetScale = containerWidth / base.width;
+                } else if (viewportFit === 'page') {
+                    const containerWidth = canvas.parentElement.clientWidth;
+                    const containerHeight = window.innerHeight - 220; // approx header/controls height
+                    const sx = containerWidth / base.width;
+                    const sy = containerHeight / base.height;
+                    targetScale = Math.min(sx, sy);
+                }
+
+                const viewport = page.getViewport({ scale: targetScale });
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                const renderContext = { canvasContext: ctx, viewport };
+                page.render(renderContext).promise.then(() => {
+                    pageNum = num;
+                    pageNumInput.value = pageNum;
+                    saveProgress();
+                }).catch(err => { console.error('Render error:', err); showFallback(); });
+            }).catch(err => { console.error('Get page error:', err); showFallback(); });
+        }
+
+        pdfjsLib.getDocument(pdfUrl).promise.then(doc => {
+            pdfDoc = doc;
+            pageCountSpan.textContent = pdfDoc.numPages;
+            pageNumInput.max = pdfDoc.numPages;
+            if (pageNum < 1 || pageNum > pdfDoc.numPages) pageNum = 1;
+            renderPage(pageNum);
+        }).catch(err => { console.error('PDF load error:', err); showFallback(); });
+
+        document.getElementById('prevPage').addEventListener('click', () => { if (pageNum > 1) renderPage(pageNum - 1); });
+        document.getElementById('nextPage').addEventListener('click', () => { if (pdfDoc && pageNum < pdfDoc.numPages) renderPage(pageNum + 1); });
+        pageNumInput.addEventListener('change', () => {
+            if (!pdfDoc) return;
+            let n = parseInt(pageNumInput.value || '1', 10);
+            if (isNaN(n)) n = 1;
+            if (n < 1) n = 1; if (n > pdfDoc.numPages) n = pdfDoc.numPages;
+            renderPage(n);
+        });
+
+        document.getElementById('zoomIn').addEventListener('click', () => { viewportFit = 'manual'; scale = Math.min(3, (scale || 1.2) + 0.2); renderPage(pageNum); });
+        document.getElementById('zoomOut').addEventListener('click', () => { viewportFit = 'manual'; scale = Math.max(0.5, (scale || 1.2) - 0.2); renderPage(pageNum); });
+        document.getElementById('fitWidth').addEventListener('click', () => { viewportFit = 'width'; renderPage(pageNum); });
+        document.getElementById('fitPage').addEventListener('click', () => { viewportFit = 'page'; renderPage(pageNum); });
+
+        window.addEventListener('resize', () => { if (pdfDoc) renderPage(pageNum); });
+        window.addEventListener('beforeunload', saveProgress);
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+            if (e.key === 'ArrowLeft' || e.key === 'PageUp') { if (pageNum > 1) renderPage(pageNum - 1); }
+            if (e.key === 'ArrowRight' || e.key === 'PageDown') { if (pdfDoc && pageNum < pdfDoc.numPages) renderPage(pageNum + 1); }
+            if (e.key === '+') { viewportFit = 'manual'; scale = Math.min(3, (scale || 1.2) + 0.2); renderPage(pageNum); }
+            if (e.key === '-') { viewportFit = 'manual'; scale = Math.max(0.5, (scale || 1.2) - 0.2); renderPage(pageNum); }
+        });
+    </script>
+</body>
+</html>

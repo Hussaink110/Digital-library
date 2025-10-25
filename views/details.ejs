@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= book.title %> - Digital Library</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <h1>📚 Digital Library</h1>
+            <div class="nav-actions" style="display:flex; gap:0.5rem;">
+                <button class="btn btn-small" id="themeToggle" title="Toggle theme">🌙</button>
+                <a href="/" class="btn">Back to Library</a>
+            </div>
+            <button class="btn btn-small menu-toggle" id="menuToggle" aria-label="Open menu">☰</button>
+            <div class="mobile-menu-panel" id="mobileMenu">
+                <a href="/" class="btn btn-small">Back to Library</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="book-details-container">
+            <div class="book-details-main">
+                <div class="book-details-image">
+<img src="<%= book.thumbnail_path %>" alt="<%= book.title %>" loading="lazy">
+                    <button class="btn-favorite" onclick="toggleFavorite('<%= book._id %>')" id="favorite-btn">
+                        <span id="favorite-icon">☆</span> Bookmark
+                    </button>
+                </div>
+                
+                <div class="book-details-info">
+                    <h1><%= book.title %></h1>
+                    
+                    <% if (book.author) { %>
+                        <p class="detail-author"><strong>Author:</strong> <%= book.author %></p>
+                    <% } %>
+                    
+                    <% if (book.category) { %>
+                        <p class="detail-category">
+                            <strong>Category:</strong> 
+                            <span class="category-badge"><%= book.category %></span>
+                        </p>
+                    <% } %>
+                    
+                    <% if (book.tags && book.tags.length > 0) { %>
+                        <div class="detail-tags">
+                            <strong>Tags:</strong>
+                            <div class="book-tags">
+                                <% book.tags.forEach(tag => { %>
+                                    <span class="tag-badge"><%= tag %></span>
+                                <% }) %>
+                            </div>
+                        </div>
+                    <% } %>
+                    
+                    <div class="book-stats">
+                        <div class="stat-item">
+                            <span class="stat-icon">👁️</span>
+                            <span class="stat-value"><%= book.view_count || 0 %></span>
+                            <span class="stat-label">Views</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">⬇️</span>
+                            <span class="stat-value"><%= book.download_count || 0 %></span>
+                            <span class="stat-label">Downloads</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">📅</span>
+                            <span class="stat-value"><%= new Date(book.upload_date).toLocaleDateString() %></span>
+                            <span class="stat-label">Added</span>
+                        </div>
+                    </div>
+                    
+                    <div class="book-description">
+                        <h3>Description</h3>
+                        <p><%= book.description || 'No description available for this book.' %></p>
+                    </div>
+
+                    <div class="book-rating-summary" style="margin:1rem 0;">
+                        <h3>Rating</h3>
+                        <div>
+                            <span id="avgRatingStars"></span>
+                            <span id="avgRatingText"><%= (book.avg_rating || 0).toFixed(1) %>/5 (<%= book.ratings_count || 0 %> reviews)</span>
+                        </div>
+                    </div>
+
+                    <div class="book-actions-large">
+                        <a href="/read/<%= book._id %>" class="btn btn-primary btn-large">
+                            📖 Read Online
+                        </a>
+                        <a href="/download/<%= book._id %>" class="btn btn-large">
+                            ⬇️ Download PDF
+                        </a>
+                        <button id="btnReadingList" class="btn btn-large">Add to Reading List</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Related Books Section -->
+            <div class="related-books-section" style="margin-top:2rem;">
+                <h2>Reviews</h2>
+                <div id="reviewsContainer" class="table-container" style="padding:0;">
+                    <div class="table-wrapper">
+                        <table class="analytics-table" id="reviewsTable">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Rating</th>
+                                    <th>Comment</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="upload-form-container" id="reviewFormBox" style="max-width:700px; margin-top:1rem;">
+                    <% if (currentUser) { %>
+                        <h3>Write a review</h3>
+                        <form id="reviewForm">
+                            <div class="form-group">
+                                <label for="rating">Rating (1-5)</label>
+                                <select id="rating" name="rating" required>
+                                    <option value="5">5</option>
+                                    <option value="4">4</option>
+                                    <option value="3">3</option>
+                                    <option value="2">2</option>
+                                    <option value="1">1</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="comment">Comment</label>
+                                <textarea id="comment" name="comment" rows="3" placeholder="Share your thoughts..."></textarea>
+                            </div>
+                            <button class="btn btn-primary" type="submit">Submit Review</button>
+                        </form>
+                    <% } else { %>
+                        <p>Please <a href="/user/login?next=<%= '/book/' + book._id %>">login</a> to write a review.</p>
+                    <% } %>
+                </div>
+            </div>
+
+            <% if (relatedBooks && relatedBooks.length > 0) { %>
+                <div class="related-books-section">
+                    <h2>Related Books</h2>
+                    <div class="related-books-grid">
+                        <% relatedBooks.forEach(relBook => { %>
+                            <div class="book-card-small">
+                                <a href="/book/<%= relBook._id %>">
+                                    <img src="<%= relBook.thumbnail_path %>" alt="<%= relBook.title %>">
+                                    <div class="book-card-small-info">
+                                        <h4><%= relBook.title %></h4>
+                                        <% if (relBook.author) { %>
+                                            <p class="small-author"><%= relBook.author %></p>
+                                        <% } %>
+                                    </div>
+                                </a>
+                            </div>
+                        <% }) %>
+                    </div>
+                </div>
+            <% } %>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Digital Library. All rights reserved.</p>
+        </div>
+    </footer>
+    <button id="backToTop" class="back-to-top" aria-label="Back to top">↑</button>
+
+    <script>
+        // Mobile menu
+        (function(){
+            const menuBtn = document.getElementById('menuToggle');
+            const menu = document.getElementById('mobileMenu');
+            if (menuBtn && menu) {
+                menuBtn.addEventListener('click', () => menu.classList.toggle('show'));
+                document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && e.target !== menuBtn) menu.classList.remove('show'); });
+            }
+        })();
+
+        // Back to top
+        (function(){
+            const btt = document.getElementById('backToTop');
+            window.addEventListener('scroll', () => { if (window.scrollY > 300) btt.classList.add('show'); else btt.classList.remove('show'); });
+            btt.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+        })();
+
+        // Render stars helper
+        function renderStars(n){
+            const rounded = Math.round((n || 0) * 2)/2; // halves
+            let out='';
+            for (let i=1;i<=5;i++){
+                if (i<=Math.floor(rounded)) out+='★';
+                else if (i-0.5===rounded) out+='☆';
+                else out+='☆';
+            }
+            return out;
+        }
+
+        // Load reviews
+        (async function(){
+            try {
+                const res = await fetch(`/api/books/<%= book._id %>/reviews`);
+                const data = await res.json();
+                const tbody = document.querySelector('#reviewsTable tbody');
+                if (Array.isArray(data) && data.length){
+                    tbody.innerHTML = data.map(r=>`
+                        <tr>
+                          <td>${r.user?.name || r.user?.email || 'User'}</td>
+                          <td>${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</td>
+                          <td>${(r.comment||'').replace(/</g,'&lt;')}</td>
+                          <td>${new Date(r.createdAt).toLocaleDateString()}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="4">No reviews yet.</td></tr>';
+                }
+            } catch {}
+        })();
+
+        // Submit review
+        (function(){
+            const form = document.getElementById('reviewForm');
+            if (!form) return;
+            form.addEventListener('submit', async (e)=>{
+                e.preventDefault();
+                const fd = new FormData(form);
+                const payload = { rating: fd.get('rating'), comment: fd.get('comment') };
+                const res = await fetch(`/api/books/<%= book._id %>/reviews`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+                if (res.ok) location.reload(); else alert('Failed to submit review');
+            });
+        })();
+
+        // Avg stars
+        (function(){
+            const avg = <%= book.avg_rating || 0 %>;
+            const el = document.getElementById('avgRatingStars');
+            if (el) el.textContent = renderStars(avg);
+        })();
+
+        // Reading list
+        (function(){
+            const btn = document.getElementById('btnReadingList');
+            if (!btn) return;
+            btn.addEventListener('click', async ()=>{
+                const res = await fetch('/api/reading-list/add', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ bookId: '<%= book._id %>' }) });
+                if (res.ok) { btn.textContent = 'Added to Reading List'; btn.disabled = true; }
+                else alert('Failed to add');
+            });
+        })();
+
+        // Theme toggle
+        (function(){
+            const btn = document.getElementById('themeToggle');
+            const apply = (mode) => { document.body.classList.toggle('dark', mode === 'dark'); btn.textContent = mode === 'dark' ? '☀️' : '🌙'; };
+            const stored = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            apply(stored || (prefersDark ? 'dark' : 'light'));
+            btn.addEventListener('click', () => {
+                const isDark = document.body.classList.toggle('dark');
+                btn.textContent = isDark ? '☀️' : '🌙';
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            });
+        })();
+
+        // Check if book is bookmarked
+        function checkFavorite(bookId) {
+            const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+            return favorites.includes(bookId);
+        }
+
+        // Update favorite button state
+        function updateFavoriteButton(bookId) {
+            const isFavorite = checkFavorite(bookId);
+            const btn = document.getElementById('favorite-btn');
+            const icon = document.getElementById('favorite-icon');
+            
+            if (isFavorite) {
+                icon.textContent = '★';
+                btn.classList.add('favorited');
+            } else {
+                icon.textContent = '☆';
+                btn.classList.remove('favorited');
+            }
+        }
+
+        // Toggle favorite status
+        function toggleFavorite(bookId) {
+            let favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+            
+            if (favorites.includes(bookId)) {
+                favorites = favorites.filter(id => id !== bookId);
+            } else {
+                favorites.push(bookId);
+            }
+            
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            updateFavoriteButton(bookId);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateFavoriteButton('<%= book._id %>');
+        });
+    </script>
+</body>
+</html>
